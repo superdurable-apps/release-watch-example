@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "dex.superdurable.io/dex-app/v1",
+  "application": {
+    "port": 8080,
+    "healthPath": "/api/health",
+    "workerSlots": 16,
+    "environment": [
+      {
+        "name": "LLM_BASE_URL"
+      },
+      {
+        "name": "LLM_MODEL"
+      },
+      {
+        "name": "LLM_API_KEY",
+        "secret": true
+      },
+      {
+        "name": "ANTHROPIC_API_KEY",
+        "secret": true
+      },
+      {
+        "name": "ISSUE_REPOSITORY"
+      }
+    ]
+  },
+  "flowDefinitions": [
+    {
+      "sourcePath": "src/release-watch-schedule-flow.ts"
+    },
+    {
+      "sourcePath": "src/release-digest-flow.ts"
+    },
+    {
+      "sourcePath": "flow-definitions/release-analyst-agent.json"
+    },
+    {
+      "sourcePath": "flow-definitions/release-triage-agent.json"
+    }
+  ],
+  "connectors": [
+    {
+      "connectionName": "release-watch-slack",
+      "connectorId": "slack",
+      "package": "@superdurable/connector-slack",
+      "version": "0.6.0",
+      "authMethodId": "",
+      "operations": [
+        "postChannelMessage",
+        "postThreadReply"
+      ],
+      "triggerBindings": [
+        {
+          "triggerName": "threadReplyCreated",
+          "bindingName": "release-watch-replies"
+        }
+      ]
+    },
+    {
+      "connectionName": "release-watch-github",
+      "connectorId": "github",
+      "package": "@superdurable/connector-github",
+      "version": "0.2.0",
+      "authMethodId": "github-oauth",
+      "operations": [
+        "listReleases"
+      ],
+      "triggerBindings": []
+    },
+    {
+      "connectionName": "release-watch-hacker-news",
+      "connectorId": "hacker-news-daily",
+      "package": "@superdurable/connector-hackernews",
+      "version": "0.4.0",
+      "authMethodId": "",
+      "operations": [
+        "searchStories",
+        "listStoryIDs",
+        "getItem"
+      ],
+      "triggerBindings": []
+    },
+    {
+      "connectionName": "release-watch-github-issues",
+      "connectorId": "github",
+      "package": "@superdurable/connector-github",
+      "version": "0.2.0",
+      "authMethodId": "github-oauth-repository",
+      "operations": [
+        "createIssue",
+        "setIssueState",
+        "replaceIssueLabels",
+        "createIssueComment"
+      ],
+      "triggerBindings": []
+    },
+    {
+      "connectionName": "release-watch-web-feed",
+      "connectorId": "web-feed",
+      "package": "@superdurable/connector-web-feed",
+      "version": "0.1.0",
+      "authMethodId": "",
+      "operations": [
+        "readFeed",
+        "readSitemap",
+        "readPage",
+        "discoverFeeds"
+      ],
+      "triggerBindings": []
+    }
+  ]
+}

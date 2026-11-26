@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: Release Watch
+  version: 1.0.0
+  description: >-
+    Reads the releases of the libraries an application depends on every
+    weekday, has an analyst agent judge them, posts a digest to Slack, and
+    files the releases the team tracks as GitHub issues. This API shows the
+    schedule and the digests, and starts a digest on demand.
+paths:
+  /api/health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: The web process serves.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+  /api/status:
+    get:
+      operationId: getStatus
+      description: The schedule and the latest digest, with its releases and their triage status.
+      responses:
+        "200":
+          description: The schedule, and the latest digest or null when none ran yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schedule, latest]
+                properties:
+                  schedule:
+                    type: object
+                    description: When digests run, how many manual runs there were, and the next digest's time.
+                  latest:
+                    oneOf:
+                      - $ref: "#/components/schemas/Digest"
+                      - type: "null"
+  /api/digests:
+    post:
+      operationId: startDigest
+      description: >-
+        Starts a digest now, as release-digest-<date>-run-<N>. It reads what
+        appeared since the last digest.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 200
+                  description: Why the digest runs; shown in its state.
+      responses:
+        "202":
+          description: The schedule accepted the request and starts the digest.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued: { type: boolean, const: true }
+  /api/digests/{digestId}:
+    get:
+      operationId: getDigest
+      parameters:
+        - name: digestId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^release-digest-\\d{4}-\\d{2}-\\d{2}(-run-\\d+)?$"
+      responses:
+        "200":
+          description: The digest's state and releases, also after its run ended.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Digest"
+        "400":
+          description: The ID is not a digest ID.
+        "404":
+          description: No digest with this ID ran.
+components:
+  schemas:
+    Digest:
+      type: object
+      required: [state, releases]
+      properties:
+        state:
+          type: object
+          description: >-
+            The digest's window, status (collecting, analyzing, posting, open,
+            closed or failed), sources read and failed, and its Slack thread.
+        releases:
+          type: array
+          description: The numbered releases with their tier, priority, triage status and issue link.
+          items:
+            type: object
